@@ -100,7 +100,8 @@
             .toolbar {
                 display: grid;
                 grid-template-columns:
-                    minmax(0, 1.8fr) minmax(180px, 0.7fr)
+                    minmax(0, 1.7fr) minmax(160px, 0.7fr)
+                    minmax(180px, 0.8fr)
                     auto auto auto;
                 gap: 12px;
                 margin-top: 22px;
@@ -324,6 +325,26 @@
                 font-size: 14px;
                 color: var(--text);
                 flex: 1;
+            }
+
+            .tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .tag {
+                display: inline-flex;
+                align-items: center;
+                min-height: 28px;
+                padding: 0 10px;
+                border-radius: 999px;
+                background: rgba(180, 76, 47, 0.1);
+                border: 1px solid rgba(180, 76, 47, 0.18);
+                color: var(--accent-strong);
+                font-size: 12px;
+                line-height: 1;
+                white-space: nowrap;
             }
 
             .actions {
@@ -633,6 +654,13 @@
                     >
                         <option value="">全部用户</option>
                     </select>
+                    <select
+                        id="tagFilter"
+                        class="select"
+                        aria-label="按标签筛选"
+                    >
+                        <option value="">全部标签</option>
+                    </select>
                     <button id="pickFileBtn" class="button" type="button">
                         手动选择 JSON
                     </button>
@@ -727,16 +755,18 @@
         </div>
 
         <script>
-            const DATA_URL = "./linux_do_2036927_prompts_images.filtered.json";
+            const DATA_URL = "./linux_do_2036927_prompts_images.with_tags.json";
 
             const state = {
                 items: [],
                 filtered: [],
                 users: [],
+                tags: [],
             };
 
             const searchInput = document.getElementById("searchInput");
             const userFilter = document.getElementById("userFilter");
+            const tagFilter = document.getElementById("tagFilter");
             const pickFileBtn = document.getElementById("pickFileBtn");
             const copyVisibleBtn = document.getElementById("copyVisibleBtn");
             const reloadBtn = document.getElementById("reloadBtn");
@@ -788,12 +818,27 @@
                             data.map((item) => item.username).filter(Boolean),
                         ),
                     ].sort((a, b) => a.localeCompare(b));
+                    state.tags = [
+                        ...new Set(
+                            data.flatMap((item) =>
+                                Array.isArray(item.tags)
+                                    ? item.tags
+                                          .filter(Boolean)
+                                          .map((tag) => String(tag))
+                                    : [],
+                            ),
+                        ),
+                    ].sort((a, b) => a.localeCompare(b));
                     buildUserOptions();
+                    buildTagOptions();
                     applyFilters();
                 } catch (error) {
                     state.items = [];
                     state.filtered = [];
+                    state.users = [];
+                    state.tags = [];
                     buildUserOptions();
+                    buildTagOptions();
                     render();
 
                     notice.innerHTML =
@@ -816,7 +861,19 @@
                         data.map((item) => item.username).filter(Boolean),
                     ),
                 ].sort((a, b) => a.localeCompare(b));
+                state.tags = [
+                    ...new Set(
+                        data.flatMap((item) =>
+                            Array.isArray(item.tags)
+                                ? item.tags
+                                      .filter(Boolean)
+                                      .map((tag) => String(tag))
+                                : [],
+                        ),
+                    ),
+                ].sort((a, b) => a.localeCompare(b));
                 buildUserOptions();
+                buildTagOptions();
                 applyFilters();
                 notice.style.display = "none";
                 notice.textContent = "";
@@ -838,23 +895,50 @@
                 }
             }
 
+            function buildTagOptions() {
+                const currentValue = tagFilter.value;
+                tagFilter.innerHTML = '<option value="">全部标签</option>';
+
+                for (const tag of state.tags) {
+                    const option = document.createElement("option");
+                    option.value = tag;
+                    option.textContent = tag;
+                    tagFilter.appendChild(option);
+                }
+
+                if (state.tags.includes(currentValue)) {
+                    tagFilter.value = currentValue;
+                }
+            }
+
             function applyFilters() {
                 const keyword = searchInput.value.trim().toLowerCase();
                 const selectedUser = userFilter.value;
+                const selectedTag = tagFilter.value;
 
                 state.filtered = state.items.filter((item) => {
                     const username = String(item.username || "");
                     const prompt = String(item.prompt || "");
                     const postNumber = String(item.post_number || "");
+                    const tags = Array.isArray(item.tags)
+                        ? item.tags
+                              .filter(Boolean)
+                              .map((tag) => String(tag))
+                        : [];
                     const matchUser =
                         !selectedUser || username === selectedUser;
+                    const matchTag =
+                        !selectedTag || tags.includes(selectedTag);
                     const matchKeyword =
                         !keyword ||
                         username.toLowerCase().includes(keyword) ||
                         prompt.toLowerCase().includes(keyword) ||
+                        tags.some((tag) =>
+                            tag.toLowerCase().includes(keyword),
+                        ) ||
                         postNumber.includes(keyword);
 
-                    return matchUser && matchKeyword;
+                    return matchUser && matchTag && matchKeyword;
                 });
 
                 render();
@@ -947,6 +1031,18 @@
                 prompt.className = "prompt";
                 prompt.textContent = String(item.prompt || "");
 
+                const tags = Array.isArray(item.tags)
+                    ? item.tags.filter(Boolean).map((tag) => String(tag))
+                    : [];
+                const tagsWrap = document.createElement("div");
+                tagsWrap.className = "tags";
+                for (const tag of tags) {
+                    const tagNode = document.createElement("span");
+                    tagNode.className = "tag";
+                    tagNode.textContent = tag;
+                    tagsWrap.appendChild(tagNode);
+                }
+
                 const actions = document.createElement("div");
                 actions.className = "actions";
 
@@ -985,7 +1081,7 @@
                 }
 
                 actions.append(copyBtn, viewBtn, rawBtn);
-                content.append(meta, prompt, actions);
+                content.append(meta, prompt, tagsWrap, actions);
                 card.append(media, content);
 
                 return card;
@@ -1146,6 +1242,7 @@
 
             searchInput.addEventListener("input", applyFilters);
             userFilter.addEventListener("change", applyFilters);
+            tagFilter.addEventListener("change", applyFilters);
             pickFileBtn.addEventListener("click", () => fileInput.click());
             copyVisibleBtn.addEventListener("click", copyVisiblePrompts);
             reloadBtn.addEventListener("click", loadData);
