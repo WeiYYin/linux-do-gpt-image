@@ -73,6 +73,10 @@
                 backdrop-filter: blur(14px);
             }
 
+            .hero.collapsed {
+                display: none;
+            }
+
             .eyebrow {
                 font-size: 12px;
                 letter-spacing: 0.18em;
@@ -105,6 +109,16 @@
                     auto auto auto;
                 gap: 12px;
                 margin-top: 22px;
+            }
+
+            .filter-panel {
+                display: grid;
+                gap: 16px;
+                margin-top: 18px;
+            }
+
+            .hero.collapsed .filter-panel {
+                display: none;
             }
 
             .input,
@@ -394,6 +408,29 @@
                 z-index: 40;
             }
 
+            .floating-toggle {
+                position: fixed;
+                right: 20px;
+                bottom: 84px;
+                z-index: 50;
+                min-height: 52px;
+                padding: 0 18px;
+                border-radius: 999px;
+                border: 1px solid rgba(180, 76, 47, 0.22);
+                background: linear-gradient(
+                    135deg,
+                    rgba(180, 76, 47, 0.96),
+                    rgba(142, 53, 29, 0.96)
+                );
+                color: #fffaf4;
+                box-shadow: 0 18px 32px rgba(71, 45, 25, 0.22);
+                backdrop-filter: blur(12px);
+            }
+
+            .floating-toggle:hover {
+                border-color: transparent;
+            }
+
             .copy-toast.show {
                 opacity: 1;
                 transform: translateY(0);
@@ -626,12 +663,19 @@
                 .thumb-grid {
                     grid-template-columns: repeat(3, minmax(0, 1fr));
                 }
+
+                .floating-toggle {
+                    right: 14px;
+                    bottom: 78px;
+                    width: calc(100vw - 28px);
+                    justify-content: center;
+                }
             }
         </style>
     </head>
     <body>
         <main class="shell">
-            <section class="hero">
+            <section id="heroPanel" class="hero collapsed">
                 <div class="eyebrow">Prompt Gallery</div>
                 <h1>提示词与图片展示页</h1>
                 <p class="subtext">
@@ -640,6 +684,7 @@
                     支持关键词搜索、用户名筛选、单条提示词复制，以及复制当前筛选结果中的全部提示词。
                 </p>
 
+                <div class="filter-panel">
                 <div class="toolbar">
                     <input
                         id="searchInput"
@@ -686,6 +731,7 @@
                 </div>
 
                 <div id="notice" class="notice"></div>
+                </div>
             </section>
 
             <section id="gallery" class="gallery" aria-live="polite"></section>
@@ -695,6 +741,15 @@
         </main>
 
         <div id="toast" class="copy-toast">已复制</div>
+        <button
+            id="toggleFiltersBtn"
+            class="button floating-toggle"
+            type="button"
+            aria-expanded="false"
+            aria-controls="heroPanel"
+        >
+            显示筛选
+        </button>
         <div id="lightbox" class="lightbox" aria-hidden="true">
             <div class="lightbox-panel">
                 <div class="lightbox-stage">
@@ -767,6 +822,9 @@
             const searchInput = document.getElementById("searchInput");
             const userFilter = document.getElementById("userFilter");
             const tagFilter = document.getElementById("tagFilter");
+            const heroPanel = document.getElementById("heroPanel");
+            const toggleFiltersBtn =
+                document.getElementById("toggleFiltersBtn");
             const pickFileBtn = document.getElementById("pickFileBtn");
             const copyVisibleBtn = document.getElementById("copyVisibleBtn");
             const reloadBtn = document.getElementById("reloadBtn");
@@ -1240,9 +1298,25 @@
                     .replaceAll("'", "&#39;");
             }
 
+            function setFiltersCollapsed(collapsed) {
+                heroPanel.classList.toggle("collapsed", collapsed);
+                toggleFiltersBtn.setAttribute(
+                    "aria-expanded",
+                    String(!collapsed),
+                );
+                toggleFiltersBtn.textContent = collapsed
+                    ? "显示筛选"
+                    : "隐藏筛选";
+            }
+
             searchInput.addEventListener("input", applyFilters);
             userFilter.addEventListener("change", applyFilters);
             tagFilter.addEventListener("change", applyFilters);
+            toggleFiltersBtn.addEventListener("click", () => {
+                setFiltersCollapsed(
+                    !heroPanel.classList.contains("collapsed"),
+                );
+            });
             pickFileBtn.addEventListener("click", () => fileInput.click());
             copyVisibleBtn.addEventListener("click", copyVisiblePrompts);
             reloadBtn.addEventListener("click", loadData);
@@ -1293,6 +1367,7 @@
             });
 
             loadData();
+            setFiltersCollapsed(true);
         </script>
     </body>
 </html>
